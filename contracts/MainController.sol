@@ -97,6 +97,8 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         _;
     }
 
+    //TODO add unwhitelist functions
+
     /**
      * @dev 
      * whitelisting a collection
@@ -144,7 +146,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         require(_loanTimeDuration > 0, "ERROR: the loan time duration can't be 0");
         offerInfo[_collection][_idNft] = OfferInfo(_collection, _idNft, _loanAmount, 0, _loanTimeDuration, _loanAPR, ControlFlags(false, false, false, false), _loanCurrency, msg.sender, address(0));
         collectionInfoPerAddress[msg.sender][_collection].push(_idNft);
-        //TODO aggiungere trasferimento NFT
+        //TODO transfer NFT
         offerPerAddress[msg.sender] += 1;
         totalOffers += 1;
         emit CreateOffer(_collection, _idNft, _loanAmount, _loanTimeDuration, _loanAPR, msg.sender, _loanCurrency);
@@ -241,12 +243,12 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         require(block.timestamp > offer.loanTimeStart + offer.loanTimeDuration * 1 days, "ERROR: the offer has not ended");
         if(offer.controlFlags.repayed){
             require(msg.sender == offer.borrower, "ERROR: you are not the borrower");
-            //TODO trasferire nft a borrower
+            //TODO transfer NFT
             offer.controlFlags.empty = true;
             emit WithdrawNFT(msg.sender, _collection, _idNft);
         }else{
             require(msg.sender == offer.lender, "ERROR: you are not the lender");
-            //TODO trasferire nft a lender
+            //TODO transfer NFT
             offer.controlFlags.empty = true;
             emit WithdrawNFT(msg.sender, _collection, _idNft);
         }
@@ -282,6 +284,14 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
     function yield(address _collection, uint _idNft) internal view returns(uint){
         OfferInfo memory offer = offerInfo[_collection][_idNft];
         return offer.loanAmount + (offer.loanAmount / 100000) * (((offer.loanAPR * 1000) / 365) * offer.loanTimeDuration); //(loanamount/100000) * (((loanapr * 1000)/365) * loantimeduration) 
+    }
+
+    function pause() external onlyOwner{
+        _pause();
+    }
+
+    function unpause() external onlyOwner{
+        _unpause();
     }
 
 }
