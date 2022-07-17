@@ -162,7 +162,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
      * _collection: address of the collection for the offer
      * _idNFT: id of the nft
      */
-    function whitdrawOffer(address _collection, uint _idNft) external offerExist(_collection, _idNft) notStarted(_collection, _idNft) onlyBorrower(_collection, _idNft) nonReentrant{
+    function withdrawOffer(address _collection, uint _idNft) external offerExist(_collection, _idNft) notStarted(_collection, _idNft) onlyBorrower(_collection, _idNft) nonReentrant{
         OfferInfo storage offer = offerInfo[_collection][_idNft];
         offer.controlFlags.withdrawn = true;
         totalOffers -= 1;
@@ -213,13 +213,12 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
      * @dev 
      * borrowing from an offer
      * for the address to borrow from the offer there are conditions that needs to be met:
-     * -the offer could not have been withdrawn
      * -this function can only be called by the address that created the offer
      * @param
      * _collection: address of the collection for the offer
      * _idNFT: id of the nft
      */
-    function borrow(address _collection, uint _idNft) offerExist(_collection, _idNft) notWithdrawn(_collection, _idNft) onlyBorrower(_collection, _idNft) external nonReentrant{
+    function borrow(address _collection, uint _idNft) offerExist(_collection, _idNft) onlyBorrower(_collection, _idNft) external nonReentrant{
         OfferInfo storage offer = offerInfo[_collection][_idNft];
         require(offer.lender != address(0) && offer.loanTimeStart != 0, "ERROR: the offer has not started");
         require(!offer.controlFlags.borrowed, "ERROR: the amount has already been borrowed");
