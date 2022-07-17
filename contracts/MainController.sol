@@ -146,7 +146,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         require(_loanTimeDuration > 0, "ERROR: the loan time duration can't be 0");
         offerInfo[_collection][_idNft] = OfferInfo(_collection, _idNft, _loanAmount, 0, _loanTimeDuration, _loanAPR, ControlFlags(false, false, false, false), _loanCurrency, msg.sender, address(0));
         collectionInfoPerAddress[msg.sender][_collection].push(_idNft);
-        //TODO transfer NFT
+        IERC721(_collection).safeTransferFrom(msg.sender, address(this), _idNft);
         offerPerAddress[msg.sender] += 1;
         totalOffers += 1;
         emit CreateOffer(_collection, _idNft, _loanAmount, _loanTimeDuration, _loanAPR, msg.sender, _loanCurrency);
@@ -164,6 +164,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
      */
     function withdrawOffer(address _collection, uint _idNft) external offerExist(_collection, _idNft) notStarted(_collection, _idNft) onlyBorrower(_collection, _idNft) nonReentrant{
         OfferInfo storage offer = offerInfo[_collection][_idNft];
+        IERC721(_collection).safeTransferFrom(address(this), offer.borrower, _idNft);
         offer.controlFlags.withdrawn = true;
         totalOffers -= 1;
         emit WhitdrawOffer(msg.sender, _collection, _idNft);
@@ -242,12 +243,12 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         require(block.timestamp > offer.loanTimeStart + offer.loanTimeDuration * 1 days, "ERROR: the offer has not ended");
         if(offer.controlFlags.repayed){
             require(msg.sender == offer.borrower, "ERROR: you are not the borrower");
-            //TODO transfer NFT
+            IERC721(_collection).safeTransferFrom(address(this), offer.borrower, _idNft);
             offer.controlFlags.empty = true;
             emit WithdrawNFT(msg.sender, _collection, _idNft);
         }else{
             require(msg.sender == offer.lender, "ERROR: you are not the lender");
-            //TODO transfer NFT
+            IERC721(_collection).safeTransferFrom(address(this), offer.lender, _idNft);
             offer.controlFlags.empty = true;
             emit WithdrawNFT(msg.sender, _collection, _idNft);
         }
