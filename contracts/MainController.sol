@@ -240,13 +240,13 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
      */
     function withdrawNFT(address _collection, uint _idNft) external offerExist(_collection, _idNft) nonReentrant{
         OfferInfo storage offer = offerInfo[_collection][_idNft];
-        require(block.timestamp > offer.loanTimeStart + offer.loanTimeDuration * 1 days, "ERROR: the offer has not ended");
         if(offer.controlFlags.repayed){
             require(msg.sender == offer.borrower, "ERROR: you are not the borrower");
             IERC721(_collection).safeTransferFrom(address(this), offer.borrower, _idNft);
             offer.controlFlags.empty = true;
             emit WithdrawNFT(msg.sender, _collection, _idNft);
         }else{
+            require(block.timestamp > offer.loanTimeStart + offer.loanTimeDuration * 1 days, "ERROR: the offer has not ended");
             require(msg.sender == offer.lender, "ERROR: you are not the lender");
             IERC721(_collection).safeTransferFrom(address(this), offer.lender, _idNft);
             offer.controlFlags.empty = true;
@@ -264,11 +264,10 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
      * _collection: address of the collection for the offer
      * _idNFT: id of the nft
      */
-    function withdrawDeposit(address _collection, uint _idNft) external offerExist(_collection, _idNft) nonReentrant{
+    function withdrawDeposit(address _collection, uint _idNft) external offerExist(_collection, _idNft) onlyLender(_collection, _idNft) nonReentrant{
         OfferInfo storage offer = offerInfo[_collection][_idNft];
-        require(block.timestamp > offer.loanTimeStart + offer.loanTimeDuration * 1 days, "ERROR: the offer has not ended");
-        require(offer.controlFlags.repayed, "ERROR: the offer has not been repayed yet by the lender");
-        IERC20(offer.loanCurrency).transfer(offer.lender, offer.loanAmount + yield(_collection, _idNft));
+        require(offer.controlFlags.repayed, "ERROR: the offer has not been repayed yet by the borrower");
+        IERC20(offer.loanCurrency).transfer(offer.lender, yield(_collection, _idNft));
         emit WithdrawDeposit(msg.sender, _collection, _idNft);
     }
 

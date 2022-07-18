@@ -278,6 +278,7 @@ describe('Repay and withdraw', async () =>{
         await token.connect(addr1).approve(contract.address, 100000000000);
         await token.mint(owner.address, 100000000000);
         await token.approve(contract.address, 100000000000);
+        await token.mint(contract.address, 100000000000);
         await collection.safeMint(owner.address, 0);
         await collection.safeMint(owner.address, 1);
         await collection.approve(contract.address, 0);
@@ -330,16 +331,74 @@ describe('Repay and withdraw', async () =>{
 
     describe('Withdraw NFT', async () => {
 
-        describe('', async () =>{
+        it('Should withdraw the NFT if the borrower has repayed the loan in time', async () =>{
+            let balanceBefore = await collection.balanceOf(owner.address);
+            expect(balanceBefore).to.be.equal(1);
+            await contract.repayOffer(collection.address, 0);
+            await contract.withdrawNFT(collection.address, 0);
+            balanceBefore = await collection.balanceOf(owner.address);
+            expect(balanceBefore).to.be.equal(2);
+        });
 
+        it('Should withdraw the NFT to the lender if the borrower has not repayed the loan', async () =>{
+            let balanceBeforeBorrower = await collection.balanceOf(owner.address);
+            let balanceBeforeLender = await collection.balanceOf(addr1.address);
+            expect(balanceBeforeBorrower).to.be.equal(1);
+            expect(balanceBeforeLender).to.be.equal(0);
+            const sevenDays = 7 * 24 * 60 * 60;
+            await ethers.provider.send('evm_increaseTime', [sevenDays]);
+            await ethers.provider.send('evm_mine');
+            await contract.connect(addr1).withdrawNFT(collection.address, 0);
+            balanceBeforeBorrower = await collection.balanceOf(owner.address);
+            balanceBeforeLender = await collection.balanceOf(addr1.address);
+            expect(balanceBeforeBorrower).to.be.equal(1);
+            expect(balanceBeforeLender).to.be.equal(1);
+        });
+
+        it('Should not let random addresses withdraw the NFT if the borrower has repayed', async () => {
+            await contract.repayOffer(collection.address, 0);
+            await expect(contract.connect(addr1).withdrawNFT(collection.address, 0)).to.be.revertedWith('ERROR: you are not the borrower');
+            await expect(contract.connect(addr2).withdrawNFT(collection.address, 0)).to.be.revertedWith('ERROR: you are not the borrower');
+        });
+
+        it('Should not let random addresses withdraw the NFT if the borrower has not repayed', async () => {
+            const sevenDays = 7 * 24 * 60 * 60;
+            await ethers.provider.send('evm_increaseTime', [sevenDays]);
+            await ethers.provider.send('evm_mine');
+            await expect(contract.withdrawNFT(collection.address, 0)).to.be.revertedWith('ERROR: you are not the lender');
+            await expect(contract.connect(addr2).withdrawNFT(collection.address, 0)).to.be.revertedWith('ERROR: you are not the lender');
+        });
+
+        it('Should fail if you try to withdraw too soon', async () =>{
+            await expect(contract.connect(addr1).withdrawNFT(collection.address, 0)).to.be.revertedWith('ERROR: the offer has not ended');
+        });
+
+        it('The offer exists', async () =>{
+            await expect(contract.withdrawNFT(zeroAddress, 0)).to.be.revertedWith("ERROR: the offer doesn't exists");
         });
 
     });
 
     describe('Withdraw Deposit', async () => {
 
-        describe('', async () =>{
-            
+        it('Should withdraw the deposit for the lender', async () =>{
+            let balanceBefore = await token.balanceOf(addr1.address);
+            await contract.repayOffer(collection.address, 0);
+            let yield = await contract.yield(collection.address, 0);
+            await contract.connect(addr1).withdrawDeposit(collection.address, 0);
+            expect(parseInt(await token.balanceOf(addr1.address))).to.be.equal(parseInt(balanceBefore) + parseInt(yield));
+        });
+
+        it('Should not let random addresses withdraw', async () =>{
+            await expect(contract.withdrawDeposit(collection.address, 0)).to.be.revertedWith('ERROR: you are not the lender');
+        });
+
+        it('Should fail if the offer has not been repayed', async () =>{
+            await expect(contract.connect(addr1).withdrawDeposit(collection.address, 0)).to.be.revertedWith('ERROR: the offer has not been repayed yet by the borrower');
+        });
+
+        it('The offer exists', async () =>{
+            await expect(contract.withdrawDeposit(zeroAddress, 0)).to.be.revertedWith("ERROR: the offer doesn't exists");
         });
 
     });
