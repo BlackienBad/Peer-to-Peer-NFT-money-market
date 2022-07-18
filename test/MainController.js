@@ -124,6 +124,14 @@ describe('Main Controller', () => {
             expect(await contract.collectionInfoPerAddress(owner.address, collection.address, 0)).to.be.equal(0);
         });
 
+        it('Should change the balance of the borrower', async () => {
+            let balanceBefore = await collection.balanceOf(owner.address);
+            expect(balanceBefore).to.be.equal(1);
+            await contract.createOffer(collection.address, 1, 1000000, 1, 15, token.address);
+            balanceBefore = await collection.balanceOf(owner.address);
+            expect(balanceBefore).to.be.equal(0);
+        });
+
     });
 
     describe('Withdraw Offer', () => {
@@ -148,6 +156,14 @@ describe('Main Controller', () => {
         it('The offer should not be withdrawn after it started', async () => {
             await contract.connect(addr1).acceptOffer(collection.address, 0);
             await expect(contract.withdrawOffer(collection.address, 0)).to.be.revertedWith('ERROR: the offer already started');
+        });
+
+        it('Should change the balance of the borrower', async () => {
+            let balanceBefore = await collection.balanceOf(owner.address);
+            expect(balanceBefore).to.be.equal(1);
+            await contract.withdrawOffer(collection.address, 0);
+            balanceBefore = await collection.balanceOf(owner.address);
+            expect(balanceBefore).to.be.equal(2);
         });
 
     });
@@ -237,6 +253,10 @@ describe('Main Controller', () => {
             await expect(contract.borrow(collection.address, 0)).to.be.revertedWith('ERROR: the amount has already been borrowed');
         });
 
+        it('The yield should be correct based on the information provided in the offer', async () =>{
+            expect(parseInt(firstOffer.loanAmount) + Math.floor(((firstOffer.loanAmount / 100) * ((firstOffer.loanAPR /365) * firstOffer.loanTimeDuration)))).to.be.equal(await contract.yield(collection.address, 0));
+        });
+
     });
 
 });
@@ -256,14 +276,72 @@ describe('Repay and withdraw', async () =>{
         [owner, addr1, addr2, _] = await ethers.getSigners();
         await token.mint(addr1.address, 100000000000);
         await token.connect(addr1).approve(contract.address, 100000000000);
+        await token.mint(owner.address, 100000000000);
+        await token.approve(contract.address, 100000000000);
         await collection.safeMint(owner.address, 0);
         await collection.safeMint(owner.address, 1);
         await collection.approve(contract.address, 0);
         await collection.approve(contract.address, 1);
         await contract.whitelistCollection(collection.address);
         await contract.whitelistCurrency(token.address);
-        await contract.createOffer(collection.address, 0, 1000000, 1, 15, token.address);
+        await contract.createOffer(collection.address, 0, 100000, 1, 15, token.address);
         firstOffer = await contract.offerInfo(collection.address, 0);
+        await contract.connect(addr1).acceptOffer(collection.address, 0);
+        await contract.borrow(collection.address, 0);
+    });
+
+    describe('Repay', async () => {
+
+        it('Should change the flag in the offer', async () =>{
+            expect(firstOffer.controlFlags.repayed).to.be.equal(false);
+            contract.repayOffer(collection.address, 0);
+            firstOffer = await contract.offerInfo(collection.address, 0);
+            expect(firstOffer.controlFlags.repayed).to.be.equal(true);
+        });
+
+        it('Should change the balance in the borrower', async () =>{
+            const balanceBefore = await token.balanceOf(owner.address);
+            await contract.repayOffer(collection.address, 0);
+            expect(await token.balanceOf(owner.address)).to.be.equal(balanceBefore - await contract.yield(collection.address, 0));
+        });
+
+        it('Should exist', async () =>{
+            await expect(contract.repayOffer(zeroAddress, 0)).to.be.revertedWith("ERROR: the offer doesn't exists");
+        });
+
+        it('Should not be repayed by random addresses', async () =>{
+            await expect(contract.connect(addr1).repayOffer(collection.address, 0)).to.be.revertedWith('ERROR: you are not the borrower');
+        });
+
+        it('Should not be repayed twitce', async () =>{
+            await contract.repayOffer(collection.address, 0);
+            await expect(contract.repayOffer(collection.address, 0)).to.be.revertedWith('ERROR: the offer has already been repayed');
+        });
+
+        it('Should fail if the offer is empty', async () => {
+            const sevenDays = 7 * 24 * 60 * 60;
+            await ethers.provider.send('evm_increaseTime', [sevenDays]);
+            await ethers.provider.send('evm_mine');
+            await contract.connect(addr1).withdrawNFT(collection.address, 0);
+            await expect(contract.repayOffer(collection.address, 0)).to.be.revertedWith('ERROR: the offer has already expired and the NFT has been transfered to the lender');
+        });
+
+    });
+
+    describe('Withdraw NFT', async () => {
+
+        describe('', async () =>{
+
+        });
+
+    });
+
+    describe('Withdraw Deposit', async () => {
+
+        describe('', async () =>{
+            
+        });
+
     });
 
 });

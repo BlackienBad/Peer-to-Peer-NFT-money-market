@@ -201,7 +201,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
      * _collection: address of the collection for the offer
      * _idNFT: id of the nft
      */
-    function repayOffer(address _collection, uint _idNft) external offerExist(_collection, _idNft) notWithdrawn(_collection, _idNft) onlyBorrower(_collection, _idNft) nonReentrant{
+    function repayOffer(address _collection, uint _idNft) external offerExist(_collection, _idNft) onlyBorrower(_collection, _idNft) nonReentrant{
         OfferInfo storage offer = offerInfo[_collection][_idNft];
         require(!offer.controlFlags.repayed, "ERROR: the offer has already been repayed");
         require(!offer.controlFlags.empty, "ERROR: the offer has already expired and the NFT has been transfered to the lender");
@@ -281,7 +281,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
      * @return
      * uint: the yield based on the loan amount, loan duration and loan apr
      */
-    function yield(address _collection, uint _idNft) internal view returns(uint){
+    function yield(address _collection, uint _idNft) public view returns(uint){
         OfferInfo memory offer = offerInfo[_collection][_idNft];
         return offer.loanAmount + (offer.loanAmount / 100000) * (((offer.loanAPR * 1000) / 365) * offer.loanTimeDuration); //(loanamount/100000) * (((loanapr * 1000)/365) * loantimeduration) 
     }
