@@ -181,6 +181,9 @@ describe('Main Controller', () => {
             offerTemp = await contract.offerInfo(collection.address, 0);
             expect(offerTemp.loanTimeStart).to.be.equal(timestampBefore);
             expect(offerTemp.lender).to.be.equal(addr1.address);
+            contract.on("CreateOffer", (collection, idNft, user) => {
+                console.log("Got the event", collection, idNft, user);
+            })
         });
 
         it('The offer should exist', async () => {

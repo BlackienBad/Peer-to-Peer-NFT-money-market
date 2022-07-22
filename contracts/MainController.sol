@@ -42,13 +42,13 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
     uint public totalOffers; //number of totalOffers
     event WhitelistCollection(address indexed collection);
     event WhitelistCurrency(address indexed currency);
-    event CreateOffer(address indexed collection, uint idNft, uint loanAmount, uint loanTimeDuration, uint loanAPR, address indexed user, address loanCurrency);
-    event WhitdrawOffer(address indexed user, address indexed collection, uint idNft);
-    event AcceptOffer(address indexed user, address indexed collection, uint idNft);
-    event RepayOffer(address indexed user, address indexed collection, uint idNft);
-    event Borrow(address indexed user, address indexed collection, uint idNft);
-    event WithdrawNFT(address indexed user, address indexed collection, uint idNft);
-    event WithdrawDeposit(address indexed user, address indexed collection, uint idNft);
+    event CreateOffer(address indexed collection, uint indexed idNft, uint loanAmount, uint loanTimeDuration, uint loanAPR, address indexed user, address loanCurrency);
+    event WhitdrawOffer(address indexed user, address indexed collection, uint indexed idNft);
+    event AcceptOffer(address indexed user, address indexed collection, uint indexed idNft);
+    event RepayOffer(address indexed user, address indexed collection, uint indexed idNft);
+    event Borrow(address indexed user, address indexed collection, uint indexed idNft);
+    event WithdrawNFT(address indexed user, address indexed collection, uint indexed idNft);
+    event WithdrawDeposit(address indexed user, address indexed collection, uint indexed idNft);
 
     constructor(){}
 
