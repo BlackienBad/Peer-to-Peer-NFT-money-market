@@ -42,13 +42,13 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
     uint public totalOffers; //number of totalOffers
     event WhitelistCollection(address indexed collection);
     event WhitelistCurrency(address indexed currency);
-    event CreateOffer(address indexed collection, uint indexed idNft, uint loanAmount, uint loanTimeDuration, uint loanAPR, address indexed user, address loanCurrency);
-    event WhitdrawOffer(address indexed user, address indexed collection, uint indexed idNft);
-    event AcceptOffer(address indexed user, address indexed collection, uint indexed idNft);
-    event RepayOffer(address indexed user, address indexed collection, uint indexed idNft);
-    event Borrow(address indexed user, address indexed collection, uint indexed idNft);
-    event WithdrawNFT(address indexed user, address indexed collection, uint indexed idNft);
-    event WithdrawDeposit(address indexed user, address indexed collection, uint indexed idNft);
+    event CreateOffer(address indexed collection, uint indexed idNft, address indexed user, uint loanAmount, uint loanTimeDuration, uint loanAPR, address loanCurrency);
+    event WhitdrawOffer(address indexed collection, uint indexed idNft, address indexed user, uint loanAmount, uint loanTimeDuration, uint loanAPR, address loanCurrency, address borrower);
+    event AcceptOffer(address indexed collection, uint indexed idNft, address indexed user, uint loanAmount, uint loanTimeDuration, uint loanAPR, address loanCurrency, address borrower, address lender, uint loanTimeStart);
+    event RepayOffer(address indexed collection, uint indexed idNft, address indexed user, uint loanAmount, uint loanTimeDuration, uint loanAPR, address loanCurrency, address borrower, address lender, uint loanTimeStart);
+    event Borrow(address indexed collection, uint indexed idNft, address indexed user, uint loanAmount, uint loanTimeDuration, uint loanAPR, address loanCurrency, address borrower, address lender, uint loanTimeStart);
+    event WithdrawNFT(address indexed collection, uint indexed idNft, address indexed user, uint loanAmount, uint loanTimeDuration, uint loanAPR, address loanCurrency, address borrower, address lender, uint loanTimeStart);
+    event WithdrawDeposit(address indexed collection, uint indexed idNft, address indexed user, uint loanAmount, uint loanTimeDuration, uint loanAPR, address loanCurrency, address borrower, address lender, uint loanTimeStart);
 
     constructor(){}
 
@@ -149,7 +149,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         IERC721(_collection).safeTransferFrom(msg.sender, address(this), _idNft);
         offerPerAddress[msg.sender] += 1;
         totalOffers += 1;
-        emit CreateOffer(_collection, _idNft, _loanAmount, _loanTimeDuration, _loanAPR, msg.sender, _loanCurrency);
+        emit CreateOffer(_collection, _idNft, msg.sender, _loanTimeDuration, _loanAPR, _loanAmount, _loanCurrency);
     }
 
     /**
@@ -167,7 +167,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         IERC721(_collection).safeTransferFrom(address(this), offer.borrower, _idNft);
         offer.controlFlags.withdrawn = true;
         totalOffers -= 1;
-        emit WhitdrawOffer(msg.sender, _collection, _idNft);
+        emit WhitdrawOffer(_collection, _idNft, msg.sender, offer.loanTimeDuration, offer.loanAPR, offer.loanAmount, offer.loanCurrency, offer.borrower);
     }
 
     /**
@@ -186,7 +186,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         offer.loanTimeStart = block.timestamp;
         offer.lender = msg.sender;
         IERC20(offer.loanCurrency).transferFrom(offer.lender, address(this), offer.loanAmount);
-        emit AcceptOffer(msg.sender, _collection, _idNft);
+        emit AcceptOffer(_collection, _idNft, msg.sender, offer.loanTimeDuration, offer.loanAPR, offer.loanAmount, offer.loanCurrency, offer.borrower, offer.lender, offer.loanTimeStart);
     }
 
     /**
@@ -207,7 +207,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         require(!offer.controlFlags.empty, "ERROR: the offer has already expired and the NFT has been transfered to the lender");
         offer.controlFlags.repayed = true;
         IERC20(offer.loanCurrency).transferFrom(offer.borrower, address(this), yield(offer.collection, offer.idNft)); // stack too deep to use _collection and _idNft
-        emit RepayOffer(msg.sender, _collection, _idNft);
+        emit RepayOffer(_collection, _idNft, msg.sender, offer.loanTimeDuration, offer.loanAPR, offer.loanAmount, offer.loanCurrency, offer.borrower, offer.lender, offer.loanTimeStart);
     }
 
     /**
@@ -225,7 +225,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         require(!offer.controlFlags.borrowed, "ERROR: the amount has already been borrowed");
         offer.controlFlags.borrowed = true;
         IERC20(offer.loanCurrency).transfer(offer.borrower, offer.loanAmount);
-        emit Borrow(msg.sender, _collection, _idNft);
+        emit Borrow(_collection, _idNft, msg.sender, offer.loanTimeDuration, offer.loanAPR, offer.loanAmount, offer.loanCurrency, offer.borrower, offer.lender, offer.loanTimeStart);
     }
 
     /**
@@ -244,13 +244,13 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
             require(msg.sender == offer.borrower, "ERROR: you are not the borrower");
             IERC721(_collection).safeTransferFrom(address(this), offer.borrower, _idNft);
             offer.controlFlags.empty = true;
-            emit WithdrawNFT(msg.sender, _collection, _idNft);
+            emit WithdrawNFT(_collection, _idNft, msg.sender, offer.loanTimeDuration, offer.loanAPR, offer.loanAmount, offer.loanCurrency, offer.borrower, offer.lender, offer.loanTimeStart);
         }else{
             require(block.timestamp > offer.loanTimeStart + offer.loanTimeDuration * 1 days, "ERROR: the offer has not ended");
             require(msg.sender == offer.lender, "ERROR: you are not the lender");
             IERC721(_collection).safeTransferFrom(address(this), offer.lender, _idNft);
             offer.controlFlags.empty = true;
-            emit WithdrawNFT(msg.sender, _collection, _idNft);
+            emit WithdrawNFT(_collection, _idNft, msg.sender, offer.loanTimeDuration, offer.loanAPR, offer.loanAmount, offer.loanCurrency, offer.borrower, offer.lender, offer.loanTimeStart);
         }
     }
 
@@ -268,7 +268,7 @@ contract MainController is Ownable, Pausable, ReentrancyGuard, ERC721Holder{
         OfferInfo storage offer = offerInfo[_collection][_idNft];
         require(offer.controlFlags.repayed, "ERROR: the offer has not been repayed yet by the borrower");
         IERC20(offer.loanCurrency).transfer(offer.lender, yield(_collection, _idNft));
-        emit WithdrawDeposit(msg.sender, _collection, _idNft);
+        emit WithdrawDeposit(_collection, _idNft, msg.sender, offer.loanTimeDuration, offer.loanAPR, offer.loanAmount, offer.loanCurrency, offer.borrower, offer.lender, offer.loanTimeStart);
     }
 
     /**
